@@ -1,0 +1,49 @@
+name: Android (Linux)
+
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        qt_arch: [android_x86, android_armv7, android_arm64_v8a]
+        qt_ver: [5.15.2]
+        qt_target: [android]
+        target_app: [Sample]
+    steps:
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v1
+        with:
+          path: ../Qt
+          key: ${{ runner.os }}-QtCache
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v2
+        with:
+          # Version of Qt to install
+          version: ${{ matrix.qt_ver }}
+          # Target platform for build
+          target: ${{ matrix.qt_target }}
+          # Architecture for Windows/Android
+          arch: ${{ matrix.qt_arch }}
+          modules: 'qtcharts qtwebengine qtscript'
+          cached: ${{ steps.cache-qt.outputs.cache-hit }}
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: build apk
+        run: |
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          export ANDROID_NDK_ROOT=$ANDROID_HOME/ndk-bundle
+          qmake
+          make -j12
+          make apk
+      - uses: actions/upload-artifact@v1
+        with:
+          name: ${{ matrix.target_app }}-${{ matrix.qt_target }}-${{ matrix.qt_arch }}
+          path: android-build/build/outputs/apk/debug/android-build-debug.apk
